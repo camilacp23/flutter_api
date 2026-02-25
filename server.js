@@ -24,9 +24,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// ✅ Preflight (OPTIONS)
-app.options('*', cors());
-
 // ✅ JSON (solo una vez)
 app.use(express.json());
 
