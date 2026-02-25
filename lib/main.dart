@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+// Importamos los archivos del proyecto
+import 'package:flutter_api/models/item.dart';
+import 'package:flutter_api/services/item_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,116 +10,230 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'CRUD Flutter & MongoDB',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        primarySwatch: Colors.teal,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      // Pantalla inicial para el registro/POST
+      home: const UserInputScreen(), 
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+// ==========================================================
+// PANTALLA 1: ENVÍO DE DATOS (POST)
+// ==========================================================
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class UserInputScreen extends StatefulWidget {
+  const UserInputScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<UserInputScreen> createState() => _UserInputScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _UserInputScreenState extends State<UserInputScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController(); 
+  final ItemService _itemService = ItemService(); 
 
-  void _incrementCounter() {
+  String _message = 'Ingresa el Nombre y la Descripción.';
+  bool _isLoading = false; 
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+  
+  void _sendDataToApi() async {
+    String nombre = _nameController.text.trim();
+    String descripcion = _descriptionController.text.trim(); 
+
+    if (nombre.isEmpty || descripcion.isEmpty) {
+      setState(() {
+        _message = '¡Error! Completa ambos campos.';
+      });
+      return; 
+    }
+
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _isLoading = true;
+      _message = 'Enviando datos a Render...';
     });
+
+    try {
+      await _itemService.createItem(nombre, descripcion);
+
+      setState(() {
+        _message = '✅ ¡Éxito! Datos guardados en MongoDB.';
+        _nameController.clear();
+        _descriptionController.clear();
+      });
+      
+      // Navegamos al listado al tener éxito
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ItemListScreen()),
+      );
+
+    } catch (e) {
+      setState(() {
+        _message = '❌ Error: ${e.toString()}';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Registro (POST a API)'),
+        backgroundColor: Colors.teal,
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(30.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              // Muestra el mensaje de estado
+              Text(
+                _message,
+                style: TextStyle(fontSize: 16, color: _message.startsWith('❌') ? Colors.red : Colors.green),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Nombre del Ítem'),
+              ),
+              const SizedBox(height: 15),
+
+              TextField(
+                controller: _descriptionController,
+                keyboardType: TextInputType.text,
+                decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Descripción'),
+              ),
+              const SizedBox(height: 30),
+
+              // Botón de Acción
+              _isLoading
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
+                      onPressed: _sendDataToApi,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
+                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                      ),
+                      child: const Text('ENVIAR A LA API (POST)'),
+                    ),
+            ],
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
 }
+
+// ==========================================================
+// PANTALLA 2: LISTADO Y ELIMINACIÓN (GET y DELETE)
+// ==========================================================
+
+class ItemListScreen extends StatefulWidget {
+  const ItemListScreen({super.key});
+
+  @override
+  State<ItemListScreen> createState() => _ItemListScreenState();
+}
+
+class _ItemListScreenState extends State<ItemListScreen> {
+  // El Future que guarda el estado de la petición GET
+  late Future<List<Item>> _futureItems; 
+  final ItemService _itemService = ItemService();
+
+  @override
+  void initState() {
+    super.initState();
+    _futureItems = _itemService.getItems(); 
+  }
+
+  // Recarga los datos (llamando a la API de nuevo)
+  void _reloadData() {
+    setState(() {
+      _futureItems = _itemService.getItems();
+    });
+  }
+  
+  // Función para eliminar un ítem (DELETE)
+  void _deleteItem(String id) async {
+    try {
+      await _itemService.deleteItem(id);
+      _reloadData(); // Vuelve a cargar la lista para quitar el ítem eliminado
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ítem eliminado con éxito'))
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar: ${e.toString()}'))
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Listado de Ítems (GET desde API)'),
+        backgroundColor: Colors.teal,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _reloadData,
+          )
+        ],
+      ),
+      body: FutureBuilder<List<Item>>( // El widget clave para datos asíncronos
+        future: _futureItems,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+          } else if (snapshot.hasData) {
+            return ListView.builder(
+              itemCount: snapshot.data!.length,
+              itemBuilder: (context, index) {
+                final item = snapshot.data![index];
+                return ListTile(
+                  title: Text(item.name),
+                  subtitle: Text('ID: ${item.id} - Creado: ${item.createdAt.day}/${item.createdAt.month}'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _deleteItem(item.id!), // Llama a DELETE
+                  ),
+                );
+              },
+            );
+          } else {
+            return const Center(child: Text('No hay ítems registrados.'));
+          }
+        },
+      ),
+      // Botón para volver a la pantalla de registro
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Icon(Icons.arrow_back),
+      ),
+    );
+  }
+}
+
